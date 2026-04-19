@@ -34,6 +34,12 @@ This is order-dependent and can give different results to connected components:
 Note: swapping the alt order in the first record (e.g. `T,C` → `C,T`) changes which
 subsequent records get merged, because only the **first** alt is used as the anchor.
 
+**Biallelic special case:** when all records are biallelic (single ALT each), the anchor
+algorithm and connected components always agree. With one alt per record, "shares an alt"
+means "has the same alt", so mergeability is just equality — which is transitive by
+definition. Ordering effects and anchor/CC divergence only arise when multiallelics are
+present.
+
 ## 2-file, 3-record case (one file contributes 2 records)
 
 The anchor algorithm treats all records at the same position as a single flat list,
