@@ -1,0 +1,11 @@
+[project]
+name = "bcftools-merge-none"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.9"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+]
