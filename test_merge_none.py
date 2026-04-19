@@ -4,7 +4,7 @@ import tempfile
 
 import pytest
 
-from merge_none import merge_none
+from merge_none import merge_none, merge_none_n
 
 BCFTOOLS = "bcftools"
 BGZIP = "bgzip"
@@ -111,3 +111,121 @@ def test_merge_none(ref1, alt1, ref2, alt2, expected):
 ])
 def test_matches_bcftools(ref1, alt1, ref2, alt2):
     assert merge_none(ref1, alt1, ref2, alt2) == bcftools_merge_none(ref1, alt1, ref2, alt2)
+
+
+# --- merge_none_n tests ---
+
+HDR = (
+    "##fileformat=VCFv4.2\n"
+    "##contig=<ID=chr1,length=1000000>\n"
+    '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'
+    "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{sample}\n"
+)
+ROW = "chr1\t100\t.\t{ref}\t{alt}\t.\tPASS\t.\tGT\t{gt}\n"
+
+
+def bcftools_merge_none_n(
+    file_records: list[list[tuple[str, list[str]]]]
+) -> list[list[int]]:
+    """Run bcftools merge -m none on N files (each a list of records) and return groups.
+
+    Returns groups as lists of flat indices into the concatenation of all file_records.
+    """
+    with tempfile.TemporaryDirectory() as d:
+        paths = []
+        for i, recs in enumerate(file_records, 1):
+            p = os.path.join(d, f"s{i}.vcf")
+            with open(p, "w") as f:
+                f.write(HDR.format(sample=f"S{i}"))
+                for ref, alts in recs:
+                    gt = "0/0" if alts == ["."] else "0/1"
+                    f.write(ROW.format(ref=ref, alt=",".join(alts), gt=gt))
+            subprocess.run([BGZIP, p], check=True)
+            subprocess.run([TABIX, "-p", "vcf", p + ".gz"], check=True)
+            paths.append(p + ".gz")
+
+        result = subprocess.run(
+            [BCFTOOLS, "merge", "-m", "none"] + paths,
+            capture_output=True, text=True, check=True,
+        )
+
+    # Map each sample to its flat record indices (in file order)
+    flat = [(ref, alts) for recs in file_records for ref, alts in recs]
+    sample_indices: dict[str, list[int]] = {}
+    offset = 0
+    for i, recs in enumerate(file_records, 1):
+        sample_indices[f"S{i}"] = list(range(offset, offset + len(recs)))
+        offset += len(recs)
+
+    header_line = next(l for l in result.stdout.splitlines() if l.startswith("#CHROM"))
+    sample_cols = header_line.split("\t")[9:]
+
+    # For each output record, find which input record each sample contributed.
+    # Use the output record's ALT set to match: find the first unassigned input
+    # record for each sample whose alts are a subset of the output alts.
+    assigned: set[int] = set()
+    groups: list[list[int]] = []
+    for line in result.stdout.splitlines():
+        if line.startswith("#"):
+            continue
+        fields = line.split("\t")
+        output_alts = set(fields[4].split(","))
+        gts = dict(zip(sample_cols, fields[9:]))
+        group = []
+        for sample, gt in gts.items():
+            if gt == "./.":
+                continue
+            for idx in sample_indices[sample]:
+                if idx not in assigned:
+                    _, alts = flat[idx]
+                    if alts == ["."] or set(alts) <= output_alts:
+                        group.append(idx)
+                        assigned.add(idx)
+                        break
+        if group:
+            groups.append(sorted(group))
+
+    return groups
+
+
+@pytest.mark.parametrize("records,expected_groups", [
+    # two identical records
+    ([("A", ["T"]), ("A", ["T"])],                        [[0, 1]]),
+    # two disjoint records
+    ([("A", ["T"]), ("A", ["C"])],                        [[0], [1]]),
+    # three records: F1 anchor T pulls in F3, F2 alone
+    ([("A", ["T"]), ("A", ["C"]), ("A", ["T", "C"])],     [[0, 2], [1]]),
+    # chain: all share pairwise but anchor limits merging
+    ([("A", ["T", "C"]), ("A", ["C", "G"]), ("A", ["G", "T"])],  [[0, 2], [1]]),
+    # alt order in F1 changes anchor: C,T anchor=C pulls in F3 (G,C)
+    ([("A", ["C", "T"]), ("A", ["G", "T"]), ("A", ["G", "C"])],  [[0, 2], [1]]),
+    # all same: all merge
+    ([("A", ["T"]), ("A", ["T"]), ("A", ["T"])],          [[0, 1, 2]]),
+    # all disjoint: three separate groups
+    ([("A", ["T"]), ("A", ["C"]), ("A", ["G"])],          [[0], [1], [2]]),
+    # 2-file 3-record: F1 has two records, F2 has one matching the first
+    ([("A", ["T"]), ("A", ["C"]), ("A", ["T"])],          [[0, 2], [1]]),
+    # F2 multiallelic T,C: anchor T pulls in F1:[T], F1:[C] alone
+    ([("A", ["T"]), ("A", ["C"]), ("A", ["T", "C"])],     [[0, 2], [1]]),
+    # ref-only merges into current group
+    ([("A", ["T"]), ("A", ["."]), ("A", ["C"])],          [[0, 1], [2]]),
+])
+def test_merge_none_n(records, expected_groups):
+    assert merge_none_n(records) == expected_groups
+
+
+@pytest.mark.parametrize("file_records", [
+    # 3 records across 2 files
+    [[("A", ["T"]), ("A", ["C"])], [("A", ["T"])]],
+    [[("A", ["T"]), ("A", ["C"])], [("A", ["C"])]],
+    [[("A", ["T"]), ("A", ["C"])], [("A", ["G"])]],
+    [[("A", ["T"]), ("A", ["C"])], [("A", ["T", "C"])]],
+    [[("A", ["T", "C"])],          [("A", ["T"]), ("A", ["C"])]],
+    # 3 records across 3 files
+    [[("A", ["T"])], [("A", ["C"])], [("A", ["T", "C"])]],
+    [[("A", ["T", "C"])], [("A", ["C", "G"])], [("A", ["G", "T"])]],
+    [[("A", ["C", "T"])], [("A", ["G", "T"])], [("A", ["G", "C"])]],
+])
+def test_merge_none_n_matches_bcftools(file_records):
+    flat = [(ref, alts) for recs in file_records for ref, alts in recs]
+    assert {frozenset(g) for g in merge_none_n(flat)} == {frozenset(g) for g in bcftools_merge_none_n(file_records)}
