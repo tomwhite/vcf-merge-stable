@@ -1,6 +1,6 @@
 import pytest
 
-from merge_none import merge_alleles, merge_record
+from merge_none import merge_alleles, merge_record, merge_none_all
 
 
 @pytest.mark.parametrize("alt_lists,expected", [
@@ -51,3 +51,23 @@ def test_merge_alleles(alt_lists, expected):
 ])
 def test_merge_record(records, expected):
     assert merge_record(records) == expected
+
+
+@pytest.mark.parametrize("records,expected", [
+    # all identical: one output record
+    ([("A", ["T"]), ("A", ["T"])],                          [("A", ["T"])]),
+    # disjoint: two separate records preserved
+    ([("A", ["T"]), ("A", ["C"])],                          [("A", ["T"]), ("A", ["C"])]),
+    # anchor T pulls in T,C; C alone
+    ([("A", ["T"]), ("A", ["C"]), ("A", ["T", "C"])],       [("A", ["T", "C"]), ("A", ["C"])]),
+    # chain: anchor T pulls in G,T; C,G alone
+    ([("A", ["T", "C"]), ("A", ["C", "G"]), ("A", ["G", "T"])], [("A", ["T", "C", "G"]), ("A", ["C", "G"])]),
+    # ref-only merges into first group
+    ([("A", ["T"]), ("A", ["."]), ("A", ["C"])],            [("A", ["T"]), ("A", ["C"])]),
+    # all ref-only
+    ([("A", ["."]), ("A", ["."])],                          [("A", ["."])]),
+    # single record passthrough
+    ([("A", ["T"])],                                        [("A", ["T"])]),
+])
+def test_merge_none_all(records, expected):
+    assert merge_none_all(records) == expected

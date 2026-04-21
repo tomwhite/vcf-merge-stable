@@ -51,6 +51,15 @@ def merge_record(records: list[tuple[str, list[str]]]) -> tuple[str, list[str]]:
     return ref, merge_alleles([alts for _, alts in records])
 
 
+def merge_none_all(records: list[tuple[str, list[str]]]) -> list[tuple[str, list[str]]]:
+    """Group and merge all records, returning one merged record per group.
+
+    Combines merge_none_n (grouping) and merge_record (merging) into a single
+    pipeline. Output order follows input order of each group's anchor record.
+    """
+    return [merge_record([records[i] for i in group]) for group in merge_none_n(records)]
+
+
 def merge_none_n(records: list[tuple[str, list[str]]]) -> list[list[int]]:
     """Group VCF records at the same position into merge groups under bcftools merge -m none.
 
