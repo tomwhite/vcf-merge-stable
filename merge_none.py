@@ -24,6 +24,24 @@ def merge_none(ref1: str, alt1: list[str], ref2: str, alt2: list[str]) -> bool:
     return bool(set(alt1) & set(alt2))
 
 
+def merge_alleles(alt_lists: list[list[str]]) -> list[str]:
+    """Return the merged ALT list for a group of records, in first-occurrence order.
+
+    Iterates alt_lists in order, appending any allele not yet seen. Ref-only
+    records (["."]) contribute no alleles. Returns ["."] if all records are ref-only.
+    """
+    seen: list[str] = []
+    seen_set: set[str] = set()
+    for alts in alt_lists:
+        if alts == ["."]:
+            continue
+        for a in alts:
+            if a not in seen_set:
+                seen.append(a)
+                seen_set.add(a)
+    return seen if seen else ["."]
+
+
 def merge_none_n(records: list[tuple[str, list[str]]]) -> list[list[int]]:
     """Group VCF records at the same position into merge groups under bcftools merge -m none.
 
