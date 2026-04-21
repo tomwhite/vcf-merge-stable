@@ -42,6 +42,15 @@ def merge_alleles(alt_lists: list[list[str]]) -> list[str]:
     return seen if seen else ["."]
 
 
+def merge_record(records: list[tuple[str, list[str]]]) -> tuple[str, list[str]]:
+    """Merge a pre-grouped list of (ref, alts) records into a single (ref, alts) record.
+
+    All records must share the same REF. ALT alleles are merged via merge_alleles.
+    """
+    ref = records[0][0]
+    return ref, merge_alleles([alts for _, alts in records])
+
+
 def merge_none_n(records: list[tuple[str, list[str]]]) -> list[list[int]]:
     """Group VCF records at the same position into merge groups under bcftools merge -m none.
 

@@ -1,6 +1,6 @@
 import pytest
 
-from merge_none import merge_alleles
+from merge_none import merge_alleles, merge_record
 
 
 @pytest.mark.parametrize("alt_lists,expected", [
@@ -29,3 +29,25 @@ from merge_none import merge_alleles
 ])
 def test_merge_alleles(alt_lists, expected):
     assert merge_alleles(alt_lists) == expected
+
+
+@pytest.mark.parametrize("records,expected", [
+    # single record passthrough
+    ([("A", ["T"])],                        ("A", ["T"])),
+    ([("A", ["T", "C"])],                   ("A", ["T", "C"])),
+    ([("A", ["."])],                        ("A", ["."])),
+    # identical records
+    ([("A", ["T"]), ("A", ["T"])],          ("A", ["T"])),
+    # overlapping
+    ([("A", ["T", "G"]), ("A", ["C", "G"])], ("A", ["T", "G", "C"])),
+    ([("A", ["T"]), ("A", ["T", "C"])],     ("A", ["T", "C"])),
+    # ref-only mixed in
+    ([("A", ["T"]), ("A", ["."])],          ("A", ["T"])),
+    ([[("A", ["."])][0], ("A", ["T"])],     ("A", ["T"])),
+    ([("A", ["."]), ("A", ["."])],          ("A", ["."])),
+    # indels
+    ([("AT", ["A"]), ("AT", ["A"])],        ("AT", ["A"])),
+    ([("A", ["AT"]), ("A", ["AT", "AC"])],  ("A", ["AT", "AC"])),
+])
+def test_merge_record(records, expected):
+    assert merge_record(records) == expected
