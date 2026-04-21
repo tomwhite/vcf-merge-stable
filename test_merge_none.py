@@ -13,21 +13,17 @@ TABIX = "tabix"
 VCF_TEMPLATE = """\
 ##fileformat=VCFv4.2
 ##contig=<ID=chr1,length=1000000>
-##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
-#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{sample}
-chr1\t100\t.\t{ref}\t{alt}\t.\tPASS\t.\tGT\t{gt}
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO
+chr1\t100\t.\t{ref}\t{alt}\t.\tPASS\t.
 """
 
 
 def bcftools_merge_none(ref1: str, alt1: list[str], ref2: str, alt2: list[str]) -> bool:
     with tempfile.TemporaryDirectory() as d:
-        for i, (ref, alt, sample) in enumerate(
-            [(ref1, alt1, "S1"), (ref2, alt2, "S2")], 1
-        ):
+        for i, (ref, alt) in enumerate([(ref1, alt1), (ref2, alt2)], 1):
             vcf = os.path.join(d, f"s{i}.vcf")
-            gt = "0/0" if alt == ["."] else "0/1"
             with open(vcf, "w") as f:
-                f.write(VCF_TEMPLATE.format(sample=sample, ref=ref, alt=",".join(alt), gt=gt))
+                f.write(VCF_TEMPLATE.format(ref=ref, alt=",".join(alt)))
             subprocess.run([BGZIP, vcf], check=True)
             subprocess.run([TABIX, "-p", "vcf", vcf + ".gz"], check=True)
 
