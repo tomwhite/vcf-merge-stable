@@ -53,8 +53,14 @@ ordered by file then by position within the file. File boundaries don't matter.
 | `A/T`, `A/C` | `A/T,C` | `A/T,C` (S1-T + S2), `A/C` (S1 only) |
 | `A/T,C` | `A/T`, `A/C` | `A/T,C` (S1 + S2-T), `A/C` (S2 only) |
 
-Case 4 is the clearest illustration: `F2:[T,C]` anchors on T (its first alt), pulls in
-`F1:[T]`, and leaves `F1:[C]` alone — even though C is also in the multiallelic.
+Case 4 is the clearest illustration: `F2:[A/T,C]` anchors on T (its first alt), pulls in
+`F1:[A/T]`, and leaves `F1:[A/C]` alone — even though C is also in the multiallelic.
+
+**Output ordering:** bcftools does not preserve input record order in its output. For
+example, `F1:[A/T], F1:[A/C], F2:[A/C]` — the anchor algorithm groups `{A/T}` first and
+`{A/C, A/C}` second, but bcftools emits `A/C` before `A/T` (k-way merge order across
+files). The Python `merge_none_n` deliberately preserves input order: group order and
+within-group order both follow the original record sequence.
 
 ## Extending the Python implementation
 

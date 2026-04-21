@@ -40,6 +40,11 @@ def merge_none_n(records: list[tuple[str, list[str]]]) -> list[list[int]]:
 
     A ref-only record (alts == ["."]) is absorbed into the first group whose anchor
     it could match — i.e. it joins the current group being built.
+
+    Output order is guaranteed to follow input order: groups appear in the order their
+    anchors are encountered, and indices within each group are in ascending order.
+    This differs from bcftools, which outputs groups in k-way merge order across files
+    and does not preserve input record ordering.
     """
     remaining = list(range(len(records)))
     groups: list[list[int]] = []
