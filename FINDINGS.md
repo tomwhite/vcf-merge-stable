@@ -62,6 +62,15 @@ example, `F1:[A/T], F1:[A/C], F2:[A/C]` — the anchor algorithm groups `{A/T}` 
 files). The Python `group_records` deliberately preserves input order: group order and
 within-group order both follow the original record sequence.
 
+**Input ordering:** the flat list passed to `group_records` should be produced by a
+k-way merge of the input files that preserves relative ordering within each file.
+Simple file-first concatenation gives the wrong output order. For example,
+`F1:[A/T, A/C]` and `F2:[A/G, A/C]` concatenated as `[A/T, A/C, A/G, A/C]` yields
+`A/T, A/C, A/G` — inconsistent with file-2 record order. The correct merged order
+`[A/T, A/G, A/C, A/C]` yields `A/T, A/G, A/C`. When records from different files
+are at the same position they conflict (no natural ordering between them), so the
+k-way merge needs a defined tiebreaking rule.
+
 ## Extending the Python implementation
 
 Extending to N records requires this anchor-based logic, treating all records at the

@@ -54,8 +54,8 @@ def merge_record(records: list[tuple[str, list[str]]]) -> tuple[str, list[str]]:
 def group_records(records: list[tuple[str, list[str]]]) -> list[list[int]]:
     """Group VCF records at the same position into merge groups under bcftools -m none.
 
-    Takes a flat ordered list of (ref, alts) records — as bcftools sees them, ordered
-    by input file then by position within that file — and returns a list of groups,
+    Takes a flat ordered list of (ref, alts) records, ordered by a k-way merge of the
+    input files (preserving relative order within each file), and returns a list of groups,
     where each group is a list of record indices that bcftools would merge into one
     output record.
 
