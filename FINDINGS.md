@@ -59,7 +59,7 @@ Case 4 is the clearest illustration: `F2:[A/T,C]` anchors on T (its first alt), 
 **Output ordering:** bcftools does not preserve input record order in its output. For
 example, `F1:[A/T], F1:[A/C], F2:[A/C]` — the anchor algorithm groups `{A/T}` first and
 `{A/C, A/C}` second, but bcftools emits `A/C` before `A/T` (k-way merge order across
-files). The Python `merge_none_n` deliberately preserves input order: group order and
+files). The Python `group_records` deliberately preserves input order: group order and
 within-group order both follow the original record sequence.
 
 ## Extending the Python implementation
@@ -69,6 +69,6 @@ same position as a flat list regardless of which file they come from. A suitable
 signature would be:
 
 ```python
-def merge_none_n(records: list[tuple[str, list[str]]]) -> list[list[int]]:
+def group_records(records: list[tuple[str, list[str]]]) -> list[list[int]]:
     ...  # returns groups of record indices
 ```

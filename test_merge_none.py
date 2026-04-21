@@ -4,7 +4,7 @@ import tempfile
 
 import pytest
 
-from merge_none import merge_none, merge_none_n
+from merge_none import can_merge, group_records
 
 BCFTOOLS = "bcftools"
 BGZIP = "bgzip"
@@ -69,8 +69,8 @@ def bcftools_merge_none(ref1: str, alt1: list[str], ref2: str, alt2: list[str]) 
     ("AT", ["A", "ATG"], "AT", ["ATG"], True),    # mixed indels, shared allele
     ("A", ["AT"], "AT", ["A"], False),            # different ref lengths
 ])
-def test_merge_none(ref1, alt1, ref2, alt2, expected):
-    assert merge_none(ref1, alt1, ref2, alt2) == expected
+def test_can_merge(ref1, alt1, ref2, alt2, expected):
+    assert can_merge(ref1, alt1, ref2, alt2) == expected
 
 
 @pytest.mark.parametrize("ref1,alt1,ref2,alt2", [
@@ -106,10 +106,10 @@ def test_merge_none(ref1, alt1, ref2, alt2, expected):
     ("A", ["AT"], "AT", ["A"]),           # different ref lengths
 ])
 def test_matches_bcftools(ref1, alt1, ref2, alt2):
-    assert merge_none(ref1, alt1, ref2, alt2) == bcftools_merge_none(ref1, alt1, ref2, alt2)
+    assert can_merge(ref1, alt1, ref2, alt2) == bcftools_merge_none(ref1, alt1, ref2, alt2)
 
 
-# --- merge_none_n tests ---
+# --- group_records tests ---
 
 HDR = (
     "##fileformat=VCFv4.2\n"
@@ -206,8 +206,8 @@ def bcftools_merge_none_n(
     # ref-only merges into current group
     ([("A", ["T"]), ("A", ["."]), ("A", ["C"])],          [[0, 1], [2]]),
 ])
-def test_merge_none_n(records, expected_groups):
-    assert merge_none_n(records) == expected_groups
+def test_group_records(records, expected_groups):
+    assert group_records(records) == expected_groups
 
 
 @pytest.mark.parametrize("file_records", [
@@ -222,6 +222,6 @@ def test_merge_none_n(records, expected_groups):
     [[("A", ["T", "C"])], [("A", ["C", "G"])], [("A", ["G", "T"])]],
     [[("A", ["C", "T"])], [("A", ["G", "T"])], [("A", ["G", "C"])]],
 ])
-def test_merge_none_n_matches_bcftools(file_records):
+def test_group_records_matches_bcftools(file_records):
     flat = [(ref, alts) for recs in file_records for ref, alts in recs]
-    assert {frozenset(g) for g in merge_none_n(flat)} == {frozenset(g) for g in bcftools_merge_none_n(file_records)}
+    assert {frozenset(g) for g in group_records(flat)} == {frozenset(g) for g in bcftools_merge_none_n(file_records)}

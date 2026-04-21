@@ -1,5 +1,5 @@
-def merge_none(ref1: str, alt1: list[str], ref2: str, alt2: list[str]) -> bool:
-    """Return True if two VCF records at the same position can be merged under bcftools merge -m none.
+def can_merge(ref1: str, alt1: list[str], ref2: str, alt2: list[str]) -> bool:
+    """Return True if two VCF records at the same position can be merged under bcftools -m none.
 
     The rule is non-empty intersection of alt allele sets: records can merge when they
     share at least one alt allele string. This is more permissive than a subset check —
@@ -51,17 +51,8 @@ def merge_record(records: list[tuple[str, list[str]]]) -> tuple[str, list[str]]:
     return ref, merge_alleles([alts for _, alts in records])
 
 
-def merge_none_all(records: list[tuple[str, list[str]]]) -> list[tuple[str, list[str]]]:
-    """Group and merge all records, returning one merged record per group.
-
-    Combines merge_none_n (grouping) and merge_record (merging) into a single
-    pipeline. Output order follows input order of each group's anchor record.
-    """
-    return [merge_record([records[i] for i in group]) for group in merge_none_n(records)]
-
-
-def merge_none_n(records: list[tuple[str, list[str]]]) -> list[list[int]]:
-    """Group VCF records at the same position into merge groups under bcftools merge -m none.
+def group_records(records: list[tuple[str, list[str]]]) -> list[list[int]]:
+    """Group VCF records at the same position into merge groups under bcftools -m none.
 
     Takes a flat ordered list of (ref, alts) records — as bcftools sees them, ordered
     by input file then by position within that file — and returns a list of groups,
@@ -106,3 +97,13 @@ def merge_none_n(records: list[tuple[str, list[str]]]) -> list[list[int]]:
         remaining = leftover
 
     return groups
+
+
+def merge_records(records: list[tuple[str, list[str]]]) -> list[tuple[str, list[str]]]:
+    """Group and merge all records at the same position, returning one record per group.
+
+    Implements bcftools -m none semantics: groups via the greedy anchor algorithm
+    (see group_records), then merges each group's alleles (see merge_record).
+    Output order follows input order of each group's anchor record.
+    """
+    return [merge_record([records[i] for i in group]) for group in group_records(records)]

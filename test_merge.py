@@ -1,6 +1,6 @@
 import pytest
 
-from merge_none import merge_alleles, merge_record, merge_none_all
+from merge_none import merge_alleles, merge_record, merge_records
 
 
 @pytest.mark.parametrize("alt_lists,expected", [
@@ -69,5 +69,5 @@ def test_merge_record(records, expected):
     # single record passthrough
     ([("A", ["T"])],                                        [("A", ["T"])]),
 ])
-def test_merge_none_all(records, expected):
-    assert merge_none_all(records) == expected
+def test_merge_records(records, expected):
+    assert merge_records(records) == expected
