@@ -1,8 +1,8 @@
 [project]
-name = "bcftools-merge-none"
+name = "vcf-merge-stable"
 version = "0.1.0"
-description = "Add your description here"
-requires-python = ">=3.9"
+description = "Merge two VCF files using bcftools -m none semantics with stable record ordering"
+requires-python = ">=3.12"
 dependencies = [
     "click>=8.1.8",
     "cyvcf2>=0.32.1",
@@ -10,6 +10,10 @@ dependencies = [
 
 [project.scripts]
 vcf-merge-stable = "vcf_merge_stable.vcf_merge:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.uv]
 package = true
