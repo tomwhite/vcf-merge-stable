@@ -108,20 +108,31 @@ def merge_vcf_files(path1: str, path2: str, output: str | None = None) -> None:
     vcf1 = cyvcf2.VCF(path1)
     vcf2 = cyvcf2.VCF(path2)
 
-    seen: set[str] = set()
-    contigs: list[tuple[str, str | None]] = []
-    for raw in (vcf1.raw_header, vcf2.raw_header):
-        for cid, length in _parse_contigs(raw):
-            if cid not in seen:
-                contigs.append((cid, length))
-                seen.add(cid)
-    contig_rank = {cid: i for i, (cid, _) in enumerate(contigs)}
+    vcf1_contig_ids: set[str] = set()
+    all_contigs: list[tuple[str, str | None]] = []
+    for cid, length in _parse_contigs(vcf1.raw_header):
+        vcf1_contig_ids.add(cid)
+        all_contigs.append((cid, length))
+
+    extra_contigs: list[tuple[str, str | None]] = []
+    vcf2_seen: set[str] = set()
+    for cid, length in _parse_contigs(vcf2.raw_header):
+        if cid not in vcf1_contig_ids and cid not in vcf2_seen:
+            extra_contigs.append((cid, length))
+            all_contigs.append((cid, length))
+            vcf2_seen.add(cid)
+
+    contig_rank = {cid: i for i, (cid, _) in enumerate(all_contigs)}
 
     with (open(output, "w") if output else sys.stdout) as out:
-        out.write("##fileformat=VCFv4.2\n")
-        for cid, length in contigs:
-            out.write(f"##contig=<ID={cid}" + (f",length={length}" if length else "") + ">\n")
-        out.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n")
+        for line in vcf1.raw_header.splitlines():
+            if line.startswith("#CHROM"):
+                for cid, length in extra_contigs:
+                    out.write(f"##contig=<ID={cid}" + (f",length={length}" if length else "") + ">\n")
+                fixed = "\t".join(line.split("\t")[:8])
+                out.write(fixed + "\n")
+                break
+            out.write(line + "\n")
 
         for l1, l2 in _merge_streams(_iter_positions(vcf1), _iter_positions(vcf2), contig_rank):
             for r in merge_with(
