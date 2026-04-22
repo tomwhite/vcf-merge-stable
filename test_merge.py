@@ -1,6 +1,6 @@
 import pytest
 
-from merge_none import merge_alleles, merge_record, merge_records
+from merge_none import merge_alleles, merge_record, merge_records, merge_two_files
 
 
 @pytest.mark.parametrize("alt_lists,expected", [
@@ -71,3 +71,28 @@ def test_merge_record(records, expected):
 ])
 def test_merge_records(records, expected):
     assert merge_records(records) == expected
+
+
+@pytest.mark.parametrize("l1,l2,expected", [
+    # no matches: all records separate, ordering from both files preserved
+    ([("A", ["T"])],        [("A", ["C"])],              [("A", ["T"]), ("A", ["C"])]),
+    # identical records merge
+    ([("A", ["T"])],        [("A", ["T"])],              [("A", ["T"])]),
+    # shared allele: records merge
+    ([("A", ["T", "G"])],   [("A", ["C", "G"])],         [("A", ["T", "G", "C"])]),
+    # ref-only merges with anything
+    ([("A", ["T"])],        [("A", ["."])],              [("A", ["T"])]),
+    # two records each, one match: ordering T, G, C (not T, C, G)
+    ([("A", ["T"]), ("A", ["C"])], [("A", ["G"]), ("A", ["C"])],
+     [("A", ["T"]), ("A", ["G"]), ("A", ["C"])]),
+    # l1 multiallelic matches first l2 record; second l2 record separate
+    ([("A", ["T", "C"])],   [("A", ["T"]), ("A", ["C"])],
+     [("A", ["T", "C"]), ("A", ["C"])]),
+    # l1 has two records, l2 multiallelic matches first
+    ([("A", ["T"]), ("A", ["C"])], [("A", ["T", "C"])],
+     [("A", ["T", "C"]), ("A", ["C"])]),
+    # different ref: no merge
+    ([("A", ["T"])],        [("C", ["T"])],              [("A", ["T"]), ("C", ["T"])]),
+])
+def test_merge_two_files(l1, l2, expected):
+    assert merge_two_files(l1, l2) == expected

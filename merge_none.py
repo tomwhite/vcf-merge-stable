@@ -1,3 +1,6 @@
+from list_merge import merge_with
+
+
 def can_merge(ref1: str, alt1: list[str], ref2: str, alt2: list[str]) -> bool:
     """Return True if two VCF records at the same position can be merged under bcftools -m none.
 
@@ -97,6 +100,22 @@ def group_records(records: list[tuple[str, list[str]]]) -> list[list[int]]:
         remaining = leftover
 
     return groups
+
+
+def merge_two_files(
+    l1: list[tuple[str, list[str]]],
+    l2: list[tuple[str, list[str]]],
+) -> list[tuple[str, list[str]]]:
+    """Merge records from two files at the same position.
+
+    Uses merge_with to preserve relative ordering from both files, matching
+    records via can_merge and combining matched pairs via merge_record.
+    """
+    return merge_with(
+        l1, l2,
+        equiv=lambda a, b: can_merge(a[0], a[1], b[0], b[1]),
+        combine=lambda a, b: merge_record([a, b]),
+    )
 
 
 def merge_records(records: list[tuple[str, list[str]]]) -> list[tuple[str, list[str]]]:
