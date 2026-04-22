@@ -137,7 +137,13 @@ def merge_vcf_files(path1: str, path2: str, output: str | None = None) -> None:
 @click.argument("vcf2", type=click.Path(exists=True))
 @click.option("-o", "--output", type=click.Path(), default=None, help="Output VCF file (default: stdout)")
 def cli(vcf1: str, vcf2: str, output: str | None) -> None:
-    """Merge two VCF files under bcftools -m none semantics, discarding INFO and FORMAT."""
+    """Merge two VCF files using -m none semantics with stable record ordering.
+
+    Unlike bcftools merge -m none, output record order is stable: relative ordering
+    from both input files is preserved (interleaved, not file-first). Records at the
+    same position are merged when their alt sets overlap; all INFO and FORMAT fields
+    are discarded.
+    """
     merge_vcf_files(vcf1, vcf2, output)
 
 

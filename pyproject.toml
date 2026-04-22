@@ -9,7 +9,7 @@ dependencies = [
 ]
 
 [project.scripts]
-vcf-merge = "vcf_merge_stable.vcf_merge:cli"
+vcf-merge-stable = "vcf_merge_stable.vcf_merge:cli"
 
 [tool.uv]
 package = true
