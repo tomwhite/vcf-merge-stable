@@ -104,6 +104,14 @@ def test_id_joined():
     assert result[0]["id"] == "rs1;rs2"
 
 
+def test_id_deduplicated():
+    result = run_merge(
+        [{"ref": "A", "alts": ["T"], "id": "rs1"}],
+        [{"ref": "A", "alts": ["T"], "id": "rs1"}],
+    )
+    assert result[0]["id"] == "rs1"
+
+
 def test_filter_union():
     result = run_merge(
         [{"ref": "A", "alts": ["T"], "filt": "LowQual"}],

@@ -38,7 +38,7 @@ def _from_variant(v: cyvcf2.Variant) -> _Record:
 
 def _combine(a: _Record, b: _Record) -> _Record:
     _, alts = merge_record([(a.ref, a.alts), (b.ref, b.alts)])
-    ids = [x for x in [a.id, b.id] if x != "."]
+    ids = list(dict.fromkeys(x for x in [a.id, b.id] if x != "."))
     quals = [q for q in [a.qual, b.qual] if q is not None]
     return _Record(
         chrom=a.chrom,
