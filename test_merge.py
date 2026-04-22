@@ -1,6 +1,51 @@
+import os
+import subprocess
+import tempfile
+
 import pytest
 
 from merge_none import merge_alleles, merge_record, merge_records, merge_two_files
+
+BCFTOOLS = "bcftools"
+BGZIP = "bgzip"
+TABIX = "tabix"
+
+VCF_HDR = (
+    "##fileformat=VCFv4.2\n"
+    "##contig=<ID=chr1,length=1000000>\n"
+    "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
+)
+VCF_ROW = "chr1\t100\t.\t{ref}\t{alt}\t.\tPASS\t.\n"
+
+
+def bcftools_merge_two_files(
+    l1: list[tuple[str, list[str]]],
+    l2: list[tuple[str, list[str]]],
+) -> set[tuple[str, frozenset[str]]]:
+    """Run bcftools merge -m none on two sample-less files, return output records as a set."""
+    with tempfile.TemporaryDirectory() as d:
+        paths = []
+        for i, recs in enumerate([l1, l2], 1):
+            p = os.path.join(d, f"s{i}.vcf")
+            with open(p, "w") as f:
+                f.write(VCF_HDR)
+                for ref, alts in recs:
+                    f.write(VCF_ROW.format(ref=ref, alt=",".join(alts)))
+            subprocess.run([BGZIP, p], check=True)
+            subprocess.run([TABIX, "-p", "vcf", p + ".gz"], check=True)
+            paths.append(p + ".gz")
+
+        result = subprocess.run(
+            [BCFTOOLS, "merge", "-m", "none"] + paths,
+            capture_output=True, text=True, check=True,
+        )
+
+    return {
+        (fields[3], frozenset(fields[4].split(",")))
+        for line in result.stdout.splitlines()
+        if not line.startswith("#")
+        for fields in [line.split("\t")]
+    }
 
 
 @pytest.mark.parametrize("alt_lists,expected", [
@@ -96,3 +141,18 @@ def test_merge_records(records, expected):
 ])
 def test_merge_two_files(l1, l2, expected):
     assert merge_two_files(l1, l2) == expected
+
+
+@pytest.mark.parametrize("l1,l2", [
+    ([("A", ["T"])],        [("A", ["C"])]),
+    ([("A", ["T"])],        [("A", ["T"])]),
+    ([("A", ["T", "G"])],   [("A", ["C", "G"])]),
+    ([("A", ["T"])],        [("A", ["."])]),
+    ([("A", ["T"]), ("A", ["C"])], [("A", ["G"]), ("A", ["C"])]),
+    ([("A", ["T", "C"])],   [("A", ["T"]), ("A", ["C"])]),
+    ([("A", ["T"]), ("A", ["C"])], [("A", ["T", "C"])]),
+])
+def test_merge_two_files_matches_bcftools(l1, l2):
+    expected = bcftools_merge_two_files(l1, l2)
+    actual = {(ref, frozenset(alts)) for ref, alts in merge_two_files(l1, l2)}
+    assert actual == expected
