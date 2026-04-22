@@ -71,13 +71,18 @@ Simple file-first concatenation gives the wrong output order. For example,
 are at the same position they conflict (no natural ordering between them), so the
 k-way merge needs a defined tiebreaking rule.
 
-## Extending the Python implementation
+`merge_two_files` avoids this problem entirely for the 2-file case: it takes two
+lists directly and uses a topological sort (via `merge_with`) to derive a consistent
+output order from both inputs, without requiring pre-interleaving.
 
-Extending to N records requires this anchor-based logic, treating all records at the
-same position as a flat list regardless of which file they come from. A suitable
-signature would be:
+## Python implementation
 
-```python
-def group_records(records: list[tuple[str, list[str]]]) -> list[list[int]]:
-    ...  # returns groups of record indices
-```
+The following functions are implemented in `merge_none.py`:
+
+- `can_merge(ref1, alt1, ref2, alt2) -> bool` — pairwise mergeability check
+- `merge_alleles(alt_lists) -> list[str]` — union of ALT alleles in first-occurrence order
+- `merge_record(records) -> (ref, alts)` — merge a pre-grouped list of records
+- `group_records(records) -> list[list[int]]` — group a flat list by the anchor algorithm
+- `merge_records(records) -> list[(ref, alts)]` — group + merge a flat list
+- `merge_two_files(l1, l2) -> list[(ref, alts)]` — merge records from two files,
+  preserving relative ordering from both via topological sort; fold over files for N>2
