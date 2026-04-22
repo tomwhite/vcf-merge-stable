@@ -54,55 +54,7 @@ def merge_record(records: list[tuple[str, list[str]]]) -> tuple[str, list[str]]:
     return ref, merge_alleles([alts for _, alts in records])
 
 
-def group_records(records: list[tuple[str, list[str]]]) -> list[list[int]]:
-    """Group VCF records at the same position into merge groups under bcftools -m none.
-
-    Takes a flat ordered list of (ref, alts) records, ordered by a k-way merge of the
-    input files (preserving relative order within each file), and returns a list of groups,
-    where each group is a list of record indices that bcftools would merge into one
-    output record.
-
-    The algorithm mirrors bcftools' greedy sequential approach:
-    1. Take the first alt allele of the first unprocessed record as the anchor.
-    2. Collect all subsequent unprocessed records whose alts contain the anchor
-       (or are ref-only).
-    3. Emit that set as one group, then repeat from step 1.
-
-    A ref-only record (alts == ["."]) is absorbed into the first group whose anchor
-    it could match — i.e. it joins the current group being built.
-
-    Output order is guaranteed to follow input order: groups appear in the order their
-    anchors are encountered, and indices within each group are in ascending order.
-    This differs from bcftools, which outputs groups in k-way merge order across files
-    and does not preserve input record ordering.
-    """
-    remaining = list(range(len(records)))
-    groups: list[list[int]] = []
-
-    while remaining:
-        anchor_idx = remaining[0]
-        _, anchor_alts = records[anchor_idx]
-        if anchor_alts == ["."]:
-            anchor = None  # ref-only anchor: accepts everything
-        else:
-            anchor = anchor_alts[0]
-
-        group = [anchor_idx]
-        leftover = []
-        for idx in remaining[1:]:
-            ref, alts = records[idx]
-            if anchor is None or alts == ["."] or anchor in alts:
-                group.append(idx)
-            else:
-                leftover.append(idx)
-
-        groups.append(group)
-        remaining = leftover
-
-    return groups
-
-
-def merge_two_files(
+def merge_pairwise(
     l1: list[tuple[str, list[str]]],
     l2: list[tuple[str, list[str]]],
 ) -> list[tuple[str, list[str]]]:
@@ -110,19 +62,10 @@ def merge_two_files(
 
     Uses merge_with to preserve relative ordering from both files, matching
     records via can_merge and combining matched pairs via merge_record.
+    For N files, fold: functools.reduce(merge_pairwise, file_record_lists).
     """
     return merge_with(
         l1, l2,
         equiv=lambda a, b: can_merge(a[0], a[1], b[0], b[1]),
         combine=lambda a, b: merge_record([a, b]),
     )
-
-
-def merge_records(records: list[tuple[str, list[str]]]) -> list[tuple[str, list[str]]]:
-    """Group and merge all records at the same position, returning one record per group.
-
-    Implements bcftools -m none semantics: groups via the greedy anchor algorithm
-    (see group_records), then merges each group's alleles (see merge_record).
-    Output order follows input order of each group's anchor record.
-    """
-    return [merge_record([records[i] for i in group]) for group in group_records(records)]

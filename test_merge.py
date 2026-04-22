@@ -4,7 +4,7 @@ import tempfile
 
 import pytest
 
-from merge_none import merge_alleles, merge_record, merge_records, merge_two_files
+from merge_none import merge_alleles, merge_record, merge_pairwise
 
 BCFTOOLS = "bcftools"
 BGZIP = "bgzip"
@@ -18,7 +18,7 @@ VCF_HDR = (
 VCF_ROW = "chr1\t100\t.\t{ref}\t{alt}\t.\tPASS\t.\n"
 
 
-def bcftools_merge_two_files(
+def bcftools_merge_pairwise(
     l1: list[tuple[str, list[str]]],
     l2: list[tuple[str, list[str]]],
 ) -> set[tuple[str, frozenset[str]]]:
@@ -98,26 +98,6 @@ def test_merge_record(records, expected):
     assert merge_record(records) == expected
 
 
-@pytest.mark.parametrize("records,expected", [
-    # all identical: one output record
-    ([("A", ["T"]), ("A", ["T"])],                          [("A", ["T"])]),
-    # disjoint: two separate records preserved
-    ([("A", ["T"]), ("A", ["C"])],                          [("A", ["T"]), ("A", ["C"])]),
-    # anchor T pulls in T,C; C alone
-    ([("A", ["T"]), ("A", ["C"]), ("A", ["T", "C"])],       [("A", ["T", "C"]), ("A", ["C"])]),
-    # chain: anchor T pulls in G,T; C,G alone
-    ([("A", ["T", "C"]), ("A", ["C", "G"]), ("A", ["G", "T"])], [("A", ["T", "C", "G"]), ("A", ["C", "G"])]),
-    # ref-only merges into first group
-    ([("A", ["T"]), ("A", ["."]), ("A", ["C"])],            [("A", ["T"]), ("A", ["C"])]),
-    # all ref-only
-    ([("A", ["."]), ("A", ["."])],                          [("A", ["."])]),
-    # single record passthrough
-    ([("A", ["T"])],                                        [("A", ["T"])]),
-])
-def test_merge_records(records, expected):
-    assert merge_records(records) == expected
-
-
 @pytest.mark.parametrize("l1,l2,expected", [
     # no matches: all records separate, ordering from both files preserved
     ([("A", ["T"])],        [("A", ["C"])],              [("A", ["T"]), ("A", ["C"])]),
@@ -139,8 +119,8 @@ def test_merge_records(records, expected):
     # different ref: no merge
     ([("A", ["T"])],        [("C", ["T"])],              [("A", ["T"]), ("C", ["T"])]),
 ])
-def test_merge_two_files(l1, l2, expected):
-    assert merge_two_files(l1, l2) == expected
+def test_merge_pairwise(l1, l2, expected):
+    assert merge_pairwise(l1, l2) == expected
 
 
 @pytest.mark.parametrize("l1,l2", [
@@ -152,7 +132,7 @@ def test_merge_two_files(l1, l2, expected):
     ([("A", ["T", "C"])],   [("A", ["T"]), ("A", ["C"])]),
     ([("A", ["T"]), ("A", ["C"])], [("A", ["T", "C"])]),
 ])
-def test_merge_two_files_matches_bcftools(l1, l2):
-    expected = bcftools_merge_two_files(l1, l2)
-    actual = {(ref, frozenset(alts)) for ref, alts in merge_two_files(l1, l2)}
+def test_merge_pairwise_matches_bcftools(l1, l2):
+    expected = bcftools_merge_pairwise(l1, l2)
+    actual = {(ref, frozenset(alts)) for ref, alts in merge_pairwise(l1, l2)}
     assert actual == expected
