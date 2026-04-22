@@ -4,7 +4,7 @@ import tempfile
 
 import pytest
 
-from merge_none import can_merge
+from vcf_merge_stable.merge_none import can_merge
 
 BCFTOOLS = "bcftools"
 BGZIP = "bgzip"

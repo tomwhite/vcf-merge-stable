@@ -4,7 +4,7 @@ import tempfile
 
 import pytest
 
-from vcf_merge import merge_vcf_files
+from vcf_merge_stable.vcf_merge import merge_vcf_files
 
 BGZIP = "bgzip"
 TABIX = "tabix"

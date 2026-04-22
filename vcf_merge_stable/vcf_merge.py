@@ -6,10 +6,11 @@ from dataclasses import dataclass
 from itertools import groupby
 from typing import Iterator
 
+import click
 import cyvcf2
 
-from list_merge import merge_with
-from merge_none import can_merge, merge_record
+from .list_merge import merge_with
+from .merge_none import can_merge, merge_record
 
 
 @dataclass
@@ -116,8 +117,7 @@ def merge_vcf_files(path1: str, path2: str, output: str | None = None) -> None:
                 seen.add(cid)
     contig_rank = {cid: i for i, (cid, _) in enumerate(contigs)}
 
-    out = open(output, "w") if output else sys.stdout
-    try:
+    with (open(output, "w") if output else sys.stdout) as out:
         out.write("##fileformat=VCFv4.2\n")
         for cid, length in contigs:
             out.write(f"##contig=<ID={cid}" + (f",length={length}" if length else "") + ">\n")
@@ -130,6 +130,16 @@ def merge_vcf_files(path1: str, path2: str, output: str | None = None) -> None:
                 combine=_combine,
             ):
                 out.write(_format_record(r) + "\n")
-    finally:
-        if output:
-            out.close()
+
+
+@click.command()
+@click.argument("vcf1", type=click.Path(exists=True))
+@click.argument("vcf2", type=click.Path(exists=True))
+@click.option("-o", "--output", type=click.Path(), default=None, help="Output VCF file (default: stdout)")
+def cli(vcf1: str, vcf2: str, output: str | None) -> None:
+    """Merge two VCF files under bcftools -m none semantics, discarding INFO and FORMAT."""
+    merge_vcf_files(vcf1, vcf2, output)
+
+
+if __name__ == "__main__":
+    cli()

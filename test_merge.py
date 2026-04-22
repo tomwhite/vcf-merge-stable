@@ -4,7 +4,7 @@ import tempfile
 
 import pytest
 
-from merge_none import merge_alleles, merge_record, merge_pairwise
+from vcf_merge_stable.merge_none import merge_alleles, merge_record, merge_pairwise
 
 BCFTOOLS = "bcftools"
 BGZIP = "bgzip"

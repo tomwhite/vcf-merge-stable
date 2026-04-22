@@ -1,4 +1,4 @@
-from list_merge import merge_with
+from .list_merge import merge_with
 
 
 def can_merge(ref1: str, alt1: list[str], ref2: str, alt2: list[str]) -> bool:

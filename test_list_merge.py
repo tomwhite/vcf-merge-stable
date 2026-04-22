@@ -1,5 +1,5 @@
 import pytest
-from list_merge import merge_with
+from vcf_merge_stable.list_merge import merge_with
 
 
 def eq(a, b):

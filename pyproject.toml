@@ -4,8 +4,15 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.9"
 dependencies = [
+    "click>=8.1.8",
     "cyvcf2>=0.32.1",
 ]
+
+[project.scripts]
+vcf-merge = "vcf_merge_stable.vcf_merge:cli"
+
+[tool.uv]
+package = true
 
 [dependency-groups]
 dev = [
